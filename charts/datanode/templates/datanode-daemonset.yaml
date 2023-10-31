@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "hdfs-k8s.datanode.fullname" . }}
+  labels:
+    app: {{ include "hdfs-k8s.datanode.fullname" . }}
+    {{- include "hdfs-k8s.selectorLabels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "hdfs-k8s.selectorLabels" . | nindent 6 }}
+      app: {{ include "hdfs-k8s.datanode.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "hdfs-k8s.datanode.fullname" . }}
+        {{- include "hdfs-k8s.selectorLabels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsGroup: {{ .Values.global.podSecurityContext.runAsGroup }}
+        runAsNonRoot: {{ .Values.global.podSecurityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.global.podSecurityContext.runAsUser }}
+        fsGroup: {{ .Values.global.podSecurityContext.fsGroup }}
+      hostNetwork: true
+      hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: hdfs-datanode
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          restartPolicy: Always
+          volumeMounts:
+            - name: hdfs-config
+              mountPath: /hadoop/conf
+              readOnly: true
+            {{- range $index, $path := .Values.global.dataNodeHostPath }}
+            - name: hdfs-data-{{ $index }}
+              mountPath: /hadoop/dfs/data/{{ $index }}
+            {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+      {{ toYaml .Values.affinity | indent 8 }}
+      {{- else if .Values.global.defaultAffinityEnabled }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - {{ include "hdfs-k8s.journalnode.name" . }}
+                  - key: "release"
+                    operator: In
+                    values:
+                      - {{ .Release.Name }}
+              topologyKey: "kubernetes.io/hostname"
+            {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+      {{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+      {{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      volumes:
+        - name: hdfs-config
+          configMap:
+            name: {{ include "hdfs-k8s.config.fullname" . }}
+       {{- range $index, $path := .Values.global.dataNodeHostPath }}
+        - name: hdfs-data-{{ $index }}
+          hostPath:
+            path: {{ $path }}
+       {{- end }}
