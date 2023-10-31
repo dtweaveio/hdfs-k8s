@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "hdfs-k8s.journalnode.fullname" . }}
+  labels:
+    app: {{ include "hdfs-k8s.journalnode.fullname" . }}
+    {{- include "hdfs-k8s.selectorLabels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "hdfs-k8s.journalnode.fullname" . }}
+  replicas: {{ .Values.global.journalnodeQuorumSize }}
+  selector:
+    matchLabels:
+      {{- include "hdfs-k8s.selectorLabels" . | nindent 6 }}
+      app: {{ include "hdfs-k8s.journalnode.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "hdfs-k8s.journalnode.fullname" . }}
+        {{- include "hdfs-k8s.selectorLabels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsGroup: {{ .Values.global.podSecurityContext.runAsGroup }}
+        runAsNonRoot: {{ .Values.global.podSecurityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.global.podSecurityContext.runAsUser }}
+        fsGroup: {{ .Values.global.podSecurityContext.fsGroup }}
+      containers:
+        - name: hdfs-journalnode
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          restartPolicy: Always
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.httpPort }}
+            - name: jn
+              containerPort: {{ .Values.service.port }}
+          volumeMounts:
+            - name: edits-dir
+              mountPath: /hadoop/dfs/journal
+              subPath: journal
+            - name: hdfs-config
+              mountPath: /hadoop/conf
+              readOnly: true
+      {{- if .Values.affinity }}
+      affinity:
+      {{ toYaml .Values.affinity | indent 8 }}
+      {{- else if .Values.global.defaultAffinityEnabled }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - {{ include "hdfs-k8s.journalnode.name" . }}
+                  - key: "release"
+                    operator: In
+                    values:
+                      - {{ .Release.Name }}
+              topologyKey: "kubernetes.io/hostname"
+            {{- end }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+      {{ toYaml .Values.nodeSelector | indent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+      {{ toYaml .Values.tolerations | indent 8 }}
+      {{- end }}
+      volumes:
+        - name: hdfs-config
+          configMap:
+            name: {{ include "hdfs-k8s.config.fullname" . }}
+  volumeClaimTemplates:
+    - metadata:
+        name: edits-dir
+      spec:
+        accessModes:
+          - {{ .Values.persistence.accessMode | quote }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size | quote }}
+         {{- if .Values.persistence.storageClass }}
+           {{- if (eq "-" .Values.persistence.storageClass) }}
+        storageClassName: ""
+           {{- else }}
+        storageClassName: "{{ .Values.persistence.storageClass }}"
+           {{- end }}
+         {{- end }}
+         {{- if .Values.persistence.selector }}
+        selector:
+   {{ toYaml .Values.persistence.selector | indent 10 }}
+         {{- end }}
