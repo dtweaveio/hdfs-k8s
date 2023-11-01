@@ -15,7 +15,7 @@
     </property>
     <property>
         <name>dfs.datanode.data.dir</name>
-        <value>/hadoop/dfs/data0</value>
+        <value>{{ include "datanode-data-dirs" . }}</value>
     </property>
 
     <property>
