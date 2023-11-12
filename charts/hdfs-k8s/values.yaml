@@ -1,0 +1,115 @@
+# Default values for hdfs-k8s.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+## ------------------------------------------------------------------------------
+## Global values affecting all sub-charts:
+## ------------------------------------------------------------------------------
+global:
+  ## The number of zookeeper server to have in the quorum.
+  ## This should match zookeeper.replicaCount above. Used only when
+  ## namenodeHAEnabled is set.
+  haZookeeperQuorum: "zk-zookeeper-0.zk-zookeeper-headless.default.svc.cluster.local:2181,zk-zookeeper-0.zk-zookeeper-headless.default.svc.cluster.local:2181,zk-zookeeper-0.zk-zookeeper-headless.default.svc.cluster.local:2181"
+
+  ## How many journal nodes to launch as a quorum. Used only when
+  ## namenodeHAEnabled is set.
+  journalnodeQuorumSize: 3
+  ## Whether or not to enable default affinity setting.
+
+  ## Whether or not to enable default affinity setting.
+  defaultAffinityEnabled: true
+
+  ## Parameters for determining which Unix user and group IDs to use in pods.
+  ## Persistent volume permission may need to match these.
+  podSecurityContext:
+    fsGroup: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+    runAsUser: 10000
+
+  ## A list of the local disk directories on cluster nodes that will contain the datanode
+  ## blocks. These paths will be mounted to the datanode as K8s HostPath volumes.
+  ## In a command line, the list should be enclosed in '{' and '}'.
+  ## e.g. --set "dataNodeHostPath={/hdfs-data,/hdfs-data1}"
+  dataNodeHostPath:
+    - /hdfs-data
+
+## ------------------------------------------------------------------------------
+## hdfs-journalnode-k8s:
+## ------------------------------------------------------------------------------
+journalnode:
+  image:
+    repository: dtweave/hdfs-journalnode
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "v3.3.6-1.0.0"
+  service:
+    port: 8485
+    httpPort: 8480
+  ## Node labels and tolerations for pod assignment
+  nodeSelector: { }
+  tolerations: [ ]
+  affinity: { }
+  persistence:
+    ## Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    # storageClass: "-"
+    ## To choose a suitable persistent volume from available static volumes, selectors
+    ## are used.
+    # selector:
+    #   matchLabels:
+    #     volume-type: hdfs-ssd
+    accessMode: ReadWriteOnce
+    size: 20Gi
+
+## ------------------------------------------------------------------------------
+## hdfs-namenode-k8s:
+## ------------------------------------------------------------------------------
+namenode:
+  image:
+    repository: dtweave/hdfs-namenode
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "v3.3.6-1.0.0"
+  service:
+    port: 8020
+    httpPort: 9870
+  ## Node labels and tolerations for pod assignment
+  nodeSelector: { }
+  tolerations: [ ]
+  affinity: { }
+  persistence:
+    ## Persistent Volume Storage Class
+    ## If defined, storageClassName: <storageClass>
+    ## If set to "-", storageClassName: "", which disables dynamic provisioning
+    ## If undefined (the default) or set to null, no storageClassName spec is
+    ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+    ##   GKE, AWS & OpenStack)
+    ##
+    # storageClass: "-"
+    ## To choose a suitable persistent volume from available static volumes, selectors
+    ## are used.
+    # selector:
+    #   matchLabels:
+    #     volume-type: hdfs-ssd
+    accessMode: ReadWriteOnce
+    size: 20Gi
+
+## ------------------------------------------------------------------------------
+## hdfs-datanode-k8s:
+## ------------------------------------------------------------------------------
+datanode:
+  image:
+    repository: dtweave/hdfs-datanode
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: "v3.3.6-1.0.0"
+  ## Node labels and tolerations for pod assignment
+  nodeSelector: { }
+  tolerations: [ ]
+  affinity: { }
